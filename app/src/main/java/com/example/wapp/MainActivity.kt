@@ -1,5 +1,6 @@
 package com.example.wapp
 
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -21,18 +22,5 @@ class MainActivity : ComponentActivity() {
                 ForecastScreen()
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String) {
-    Text(text = "Hello $name!")
-}
-
-@Preview(showBackground = true)
-@Composable
-fun DefaultPreview() {
-    WappTheme {
-        Greeting("Android")
     }
 }

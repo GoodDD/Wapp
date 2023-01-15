@@ -1,39 +1,43 @@
 package com.example.wapp.screens.forecast
 
+import android.net.Uri
 import android.util.Log
 import androidx.compose.ui.focus.FocusManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UriUtil
+import com.example.wapp.R
 import com.example.wapp.data.models.Forecast
-import com.example.wapp.data.models.ForecastX
 import com.example.wapp.data.models.SearchLocation
 import com.example.wapp.repository.WeatherRepository
 import com.example.wapp.utils.Response
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import retrofit2.http.Query
 import javax.inject.Inject
-
 
 data class ForecastUiState(
     val searchText: String = "",
     val loading: Boolean = true,
     val forecast: Forecast? = null,
-    val cities: List<SearchLocation> = emptyList()
+    val cities: List<SearchLocation> = emptyList(),
 )
 
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class ForecastScreenViewModel @Inject constructor(
-    private val repository: WeatherRepository
+    private val repository: WeatherRepository,
+    val player: Player
 ): ViewModel() {
 
     // TODO: TEMP, testing pull-to-refresh
     private var _searchText = MutableStateFlow("")
+
     private val _isLoading = MutableStateFlow(true)
     private val _forecast: MutableStateFlow<Forecast?> = MutableStateFlow(null)
     private val _cities = MutableStateFlow<List<SearchLocation>>(emptyList())
@@ -48,7 +52,6 @@ class ForecastScreenViewModel @Inject constructor(
                 isLoading,
                 forecast,
                 cities
-
             )
     }.stateIn(
         scope = viewModelScope,
@@ -108,7 +111,6 @@ class ForecastScreenViewModel @Inject constructor(
     fun load(prefix: String) {
         viewModelScope.launch(Dispatchers.IO) {
             _isLoading.value = true
-            _forecast.value = null
             when (val response = repository.getForecast(prefix)) {
                 is Response.Success -> {
                     Log.i("Won", "responce success")
@@ -117,113 +119,24 @@ class ForecastScreenViewModel @Inject constructor(
                 is Response.Error -> {
                     Log.i("wtfE", "error")
                 }
-                /*is Response.Loading -> {
-                    Log.i("wtfL", "loading")
-                }*/
             }
-            //getForecast()
             _isLoading.value = false
-            //Log.i(ForecastScreenViewModel::class.simpleName, cityPrefix)
         }
     }
-    // TODO: TEMP
 
-    // TODO: TESTING FEATURE
-//    fun getForecastState() {
-//        _forecast.value = null
-//        viewModelScope.launch(Dispatchers.IO) {
-//            when (val response = repository.getForecast("59.45,24.75")) {
-//                is Response.Success -> {
-//                    _forecast.value = response.data
-//                    _isLoading.value = false
-//                    Log.i(ForecastScreenViewModel::class.simpleName, _forecast.value!!.location.localtime.toString())
-//                }
-//                is Response.Error -> {
-//                    _isLoading.value = false
-//                    Log.i(ForecastScreenViewModel::class.simpleName, "Error in getForecastState")
-//                }
-//                is Response.Loading -> {
-//                    _isLoading.value = true
-//                    Log.i(ForecastScreenViewModel::class.simpleName, "Loading in getForecastState")
-//                }
-//            }
-//        }
-//    }
-     //
+    private fun getVideoUri(): Uri {
+        val rawId = R.raw.clouds
+        val videoUri = "android.resource://com.example.wapp/$rawId"
+        return Uri.parse(videoUri)
+    }
 
     init {
         additionalSearchTextSetup()
         load("Tallinn")
+        player.apply {
+            setMediaItem(MediaItem.fromUri(getVideoUri()))
+            repeatMode = Player.REPEAT_MODE_ALL
+            playWhenReady = true
+        }.prepare()
     }
-
-//    suspend fun getForecast(): Response {
-//        //return repository.getForecast("59.45,24.75")
-//        return when (val response = repository.getForecast("59.45,24.75")) {
-//
-//            is Response.Success -> {
-//                _forecast.value = Response.Loading
-//                Log.i("wtf1", _forecast.value.toString())
-//                _forecast.value = response
-//                Log.i("wtf2", response.data.location.localtime)
-//                response
-//            }
-//            is Response.Error -> {
-//                _forecast.value = response
-//                response
-//            }
-//            is Response.Loading -> {
-//                _forecast.value = response
-//                response
-//            }
-//        }
-//    }
-
-//    val test = combine() {
-//
-//    }.stateIn(
-//        scope = viewModelScope,
-//        started = SharingStarted.WhileSubscribed(),
-//        initialValue = "123"
-//    )
-
-//    private var _searchText = MutableStateFlow("")
-//    var searchText = _searchText.asStateFlow()
-//    private val _cities = MutableStateFlow<List<SearchLocation>>(emptyList())
-//
-//    init {
-//
-//        _searchText
-//            .debounce(300)
-//            .filter { prefix ->
-//                (prefix.isNotEmpty() && prefix.length > 2)
-//            }
-//            .distinctUntilChanged()
-//            .flowOn(Dispatchers.IO)
-//            .onEach { prefix ->
-//                getCityNames(prefix)
-//            }
-//            .launchIn(viewModelScope)
-//    }
-//
-//    fun onCityNameSearch(prefix: String) {
-//        _searchText.value = prefix
-//    }
-//
-//    private fun getCityNames(prefix: String) {
-//        viewModelScope.launch(Dispatchers.IO) {
-//            when(val response = repository.getCities(prefix)) {
-//                is Response.Success<*> -> {
-//                    _cities.value = response.data as List<SearchLocation>
-//                }
-//                is Response.Error -> {
-//
-//                }
-//                else -> {}
-//            }
-//        }
-//    }
-
-//    fun onCityNameSearch(prefix: String) {
-//        _searchText.value = prefix
-//    }
 }

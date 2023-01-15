@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Forecast(
     val current: Current,
-    val forecast: ForecastX? = null,
+    val forecast: ForecastX,
     val location: Location
 )
 

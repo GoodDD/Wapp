@@ -1,54 +1,57 @@
 package com.example.wapp.screens.forecast
 
-import android.util.Log
-import com.example.wapp.R
-import androidx.compose.foundation.Image
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.widget.FrameLayout
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.pullrefresh.*
-import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusManager
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.ExperimentalLifecycleComposeApi
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.wapp.R
+import com.example.wapp.data.models.Current
 import com.example.wapp.data.models.Forecast
 import com.example.wapp.data.models.Forecastday
 import com.example.wapp.data.models.Hour
-import com.example.wapp.data.models.SearchLocation
 
-// TODO: Spacer may be replaced?
+// TODO: Think about pull-to-refresh
 
-@OptIn(ExperimentalMaterialApi::class, ExperimentalMaterial3Api::class,
+@OptIn(
+    ExperimentalMaterialApi::class,
+    ExperimentalMaterial3Api::class,
     ExperimentalLifecycleComposeApi::class
 )
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun ForecastScreen(
     viewModel: ForecastScreenViewModel = hiltViewModel(),
@@ -56,64 +59,27 @@ fun ForecastScreen(
 
     val uiState = viewModel.forecastUiState.collectAsStateWithLifecycle().value
 
-    //val isLoading = viewModel.isLoading.collectAsState()
     val pullRefreshState = rememberPullRefreshState(uiState.loading, { viewModel.load(uiState.searchText) })
 
-//    LaunchedEffect(uiState.forecast) {
-//        viewModel.load()
-//        Log.i("12345", "launch")
-//    }
-    Log.i("322", uiState.loading.toString())
-    uiState.forecast?.location?.let {
-        Log.i("123", it.localtime)
-        Log.i("forecastui", it.toString())
+    // TODO: Rewrite background video part
+    DisposableEffect(
+        AndroidView(
+            factory = { context ->  
+                PlayerView(context).apply {
+                    player = viewModel.player
+                    layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                    useController = false
+                    resizeMode = RESIZE_MODE_ZOOM
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+    ) {
+        onDispose {
+            viewModel.player.release()
+        }
     }
-//    when (uiState.forecast) {
-//        is Response.Success -> {
-//            Log.i("321", uiState.forecast.data.location.localtime)
-//        }
-//        is Response.Error -> {
-//
-//        }
-//        is Response.Loading -> {
-//
-//        }
-//        else -> {}
-//    }
-//    when(uiState.forecast) {
-//        is Response.Success -> {
-//            Log.i("123", uiState.forecast.data.location.localtime)
-//        }
-//        is Response.Error -> {
-//            Log.i("123", "error")
-//        }
-//        is Response.Loading -> {
-//            Log.i("123", "loading")
-//        }
-//    }
-//    val forecast = produceState<Response>(initialValue = Response.Loading) {
-//        value = viewModel.getForecast()
-//        Log.i("Produce", "1")
-//    }.value
-//
-//    when(forecast) {
-//        is Response.Success -> {
-//            Log.i("ForecastScreen", forecast.data.location.localtime)
-//        }
-//        is Response.Error -> {
-//            Log.i("ForecastScreen", forecast.message)
-//        }
-//        is Response.Loading -> {
-//            Log.i("ForecastScreen", "Loading...")
-//        }
-//    }
-    val focusManager = LocalFocusManager.current
-    // TODO: TEMP ExposedDropdown test
-    //var expanded by remember { mutableStateOf(false) }
-    //if (uiState.cities.isNotEmpty()) expanded = true
-    //var selectedOptionText by remember { mutableStateOf(options[0]) }
-    Log.i("Cities", uiState.cities.toString())
-    //Log.i("Expanded", expanded.toString())
+
     Box(
         Modifier
             .pullRefresh(pullRefreshState)
@@ -121,169 +87,33 @@ fun ForecastScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = {
-                        viewModel.clearSearch()
-                        focusManager.clearFocus()
-                    })
-                },
+                .padding(8.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (uiState.loading) {
                 CircularProgressIndicator()
             } else {
-                CitySearchField(
-                    prefix = uiState.searchText,
-                    onPrefixChanged = viewModel::onCityNameSearch,
-                    cities = uiState.cities,
-                    onCitySelected = viewModel::onCityNameSelected,
-                    getCities = viewModel::getCities,
-                    focusManager = focusManager,
-                    clear = viewModel::clearSearch
-                )
-                uiState.forecast?.let { ForecastCurrent(it) }
-            }
-//            TopAppBar()
-//            ForecastCurrent(forecast.data)
-//            // TODO: Replace place row in a section
-//            Row(
-//                modifier = Modifier.background(Color.LightGray)
-//            ) {
-//                Column(
-//                    modifier = Modifier.padding(8.dp),
-//                    verticalArrangement = Arrangement.spacedBy(8.dp)
-//                ) {
-//                    ForecastHourlySection(forecast.data)
-//                    ForecastDailySection(forecast.data)
-//                }
-//            }
-        }
-        PullRefreshIndicator(uiState.loading, pullRefreshState, Modifier.align(Alignment.TopCenter))
-    }
-
-//    when(forecast) {
-//        is Response.Success -> {
-//            Box(
-//                Modifier
-//                    .pullRefresh(pullRefreshState)
-//            ) {
-//                Column(
-//                    modifier = Modifier
-//                        .fillMaxSize()
-//                        .verticalScroll(rememberScrollState()),
-//                    verticalArrangement = Arrangement.SpaceBetween,
-//                    horizontalAlignment = Alignment.CenterHorizontally
-//                ) {
-//                    TopAppBar()
-//                    ForecastCurrent(forecast.data)
-//                    // TODO: Replace place row in a section
-//                    Row(
-//                        modifier = Modifier.background(Color.LightGray)
-//                    ) {
-//                        Column(
-//                            modifier = Modifier.padding(8.dp),
-//                            verticalArrangement = Arrangement.spacedBy(8.dp)
-//                        ) {
-//                            ForecastHourlySection(forecast.data)
-//                            ForecastDailySection(forecast.data)
-//                        }
-//                    }
-//                }
-//                PullRefreshIndicator(isLoading.value, pullRefreshState, Modifier.align(Alignment.TopCenter))
-//            }
-//        }
-//        is Response.Error -> {
-//
-//        }
-//        is Response.Loading -> {
-//
-//        }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CitySearchField(
-    prefix: String,
-    onPrefixChanged: (String) -> Unit,
-    cities: List<SearchLocation>,
-    onCitySelected: (String, FocusManager) -> Unit,
-    getCities: (String) -> Unit,
-    focusManager: FocusManager,
-    clear: () -> Unit // TODO: MB remove?
-) {
-    var expanded by remember { mutableStateOf(false) }
-    expanded = cities.isNotEmpty() // TODO: Watch this part over
-
-    Log.i("CitiesInTest", cities.toString())
-    Log.i("Expanded", expanded.toString())
-    Log.i("Length", prefix.length.toString())
-    Log.i("Prefix", prefix)
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { _ ->
-            //getCities(prefix) // TODO: Prefix is not seen inside
-        }
-
-    ) {
-        TextField(
-            value = prefix,
-            onValueChange = {
-                onPrefixChanged(it)
-                //expanded = cities.isNotEmpty()
-            },
-            modifier = Modifier.menuAnchor(),
-            readOnly = false,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(
-                onDone = { // TODO: Optimize this! autocomplete textfield with first match in citites
-                    onCitySelected(prefix, focusManager)
+                uiState.forecast?.let { forecast ->
+                    ForecastWrapper(forecast)
                 }
-            )
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = {
-                Log.i("Dismiss?", "Yep")
-                //clear()
-
-                //viewModel.clearSearch()
-                //expanded = false
-                //focusManager.clearFocus()
-            }
-        ) {
-            cities.forEach { selectionOption ->
-                DropdownMenuItem(
-                    text = { Text(text = selectionOption.name) },
-                    onClick = {
-                        //Log.i("CityClicked", selectionOption.name)
-                        //onPrefixChanged(selectionOption.name)
-                        onCitySelected(selectionOption.name, focusManager)
-                        //prefix = selectionOption.name
-                        //viewModel.onCityNameSelected(selectionOption.name)
-                        //viewModel.clearSearch()
-                        //focusManager.clearFocus()
-                    }
-                )
             }
         }
+        //PullRefreshIndicator(uiState.loading, pullRefreshState, Modifier.align(Alignment.TopCenter))
     }
 }
 
 @Composable
-fun TopAppBar() {
-    Row(
-        modifier = Modifier
-            .padding(16.dp)
-            .fillMaxWidth(),
+fun ForecastWrapper(forecast: Forecast) {
+    Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            modifier = Modifier.size(48.dp),
-            imageVector = Icons.Filled.ChevronLeft,
-            contentDescription = "Back"
-        )
+        ForecastCurrent(forecast)
+        ForecastHourlySection(forecast.forecast.forecastday[0].hour)
+        ForecastDailySection(forecast.forecast.forecastday)
+        ExtrasDataSection(forecast.current)
     }
 }
 
@@ -291,7 +121,7 @@ fun TopAppBar() {
 fun ForecastCurrent(forecast: Forecast) {
 
     Row(
-        modifier = Modifier,
+        modifier = Modifier.padding(top = 16.dp, bottom = 32.dp),
         horizontalArrangement = Arrangement.Center
     ) {
         Column(
@@ -316,12 +146,6 @@ fun ForecastCurrent(forecast: Forecast) {
                     style = MaterialTheme.typography.headlineLarge
                 )
             }
-
-//            Text(
-//                text = "8/12°C",
-//                fontFamily = FontFamily.Monospace,
-//                style = MaterialTheme.typography.titleLarge
-//            )
             Text(
                 text = forecast.current.condition.text,
                 fontWeight = FontWeight.Bold,
@@ -332,51 +156,19 @@ fun ForecastCurrent(forecast: Forecast) {
     }
 }
 
-// TODO: TEMP
-@Composable
-fun ForecastHourlyCard() {
-    ElevatedCard(modifier = Modifier) {
-        Column(
-            modifier = Modifier.padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "13.00",
-                fontFamily = FontFamily.Monospace,
-                style = MaterialTheme.typography.titleLarge
-            )
-            Image(
-                painter = painterResource(R.drawable.sunny),
-                contentDescription = "Sunny",
-                modifier = Modifier.size(width = 48.dp, height = 48.dp)
-            )
-            Text(
-                text = "12°C",
-                fontFamily = FontFamily.Monospace,
-                style = MaterialTheme.typography.titleLarge
-            )
-        }
-    }
-}
-
 @Composable
 fun ForecastHourlyCard(hour: Hour) {
-    ElevatedCard(
-        //modifier = Modifier.padding(vertical = 8.dp),
-    ) {
+    ElevatedCard {
         Column(
-            modifier = Modifier.padding(8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = hour.time.takeLast(5),
-                fontFamily = FontFamily.Monospace,
-                style = MaterialTheme.typography.titleLarge
             )
             AsyncImage(
-                modifier = Modifier.size(width = 48.dp, height = 48.dp),
+                modifier = Modifier.size(36.dp),
                 model = ImageRequest.Builder(LocalContext.current)
                     .data("https:${hour.condition.icon}")
                     .crossfade(true)
@@ -385,83 +177,18 @@ fun ForecastHourlyCard(hour: Hour) {
             )
             Text(
                 text = hour.temp_c.toString()+"°C",
-                fontFamily = FontFamily.Monospace,
-                style = MaterialTheme.typography.titleLarge
             )
         }
     }
 }
 
 @Composable
-fun ForecastDailyCard(day: Forecastday) {
-    ElevatedCard(
-        modifier = Modifier
-    ) {
-        Column(
-            modifier = Modifier.padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // TODO: Adaptive day of the week
-            Text(
-                text = "Tomorrow",
-                fontFamily = FontFamily.Monospace,
-                style = MaterialTheme.typography.titleLarge
-            )
-            Text(
-                text = day.date.takeLast(5),
-                fontFamily = FontFamily.Monospace,
-                style = MaterialTheme.typography.titleLarge
-            )
-            AsyncImage(
-                modifier = Modifier.size(width = 48.dp, height = 48.dp),
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data("https:${day.day.condition.icon}")
-                    .crossfade(true)
-                    .build(),
-                contentDescription = day.day.condition.text
-            )
-            Text(
-                modifier = Modifier.width(128.dp),
-                text = day.day.condition.text,
-                fontFamily = FontFamily.Monospace,
-                overflow = TextOverflow.Ellipsis,
-                softWrap = true,
-                maxLines = 1,
-                style = MaterialTheme.typography.titleLarge
-            )
-            Text(
-                text = day.day.avgtemp_c.toString()+"°C",
-                fontFamily = FontFamily.Monospace,
-                style = MaterialTheme.typography.titleLarge
-            )
-        }
-    }
-}
-
-data class TempDay(
-    val time: String,
-    val icon: String,
-    val temp: String
-)
-// TODO: TEMP
-@Composable
-fun ForecastHourlySection(forecast: Forecast) {
-
-    val list = List(10) {
-        TempDay(
-            "12.00",
-            "test",
-            "12°C"
-        )
-    }
-
-    val hours: List<Hour> = forecast.forecast!!.forecastday[0].hour
-
+fun ForecastHourlySection(hours: List<Hour>) {
+    
     LazyRow(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(Color.DarkGray),
+            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(8.dp)
     ) {
@@ -472,72 +199,206 @@ fun ForecastHourlySection(forecast: Forecast) {
 }
 
 @Composable
-fun ForecastDailySection(forecast: Forecast) {
+fun ForecastDailyCardExperimental(forecast: Forecastday) {
 
-    val days = forecast.forecast!!.forecastday
+    var expanded by remember { mutableStateOf(false) }
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f
+    )
 
-    LazyRow(
+    ElevatedCard(
         modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color.DarkGray),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(8.dp)
+            .fillMaxWidth()
+            .animateContentSize(
+                animationSpec = tween(
+                    durationMillis = 300,
+                    easing = LinearOutSlowInEasing
+                )
+            )
     ) {
-        items(items = days) { day: Forecastday ->
-            ForecastDailyCard(day)
+        Column(
+            modifier = Modifier.padding(8.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AsyncImage(
+                    modifier = Modifier.size(36.dp),
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data("https:${forecast.day.condition.icon}")
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = forecast.day.condition.text
+                )
+
+                Row(
+                    modifier = Modifier
+                        .weight(1f),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(text = forecast.day.avgtemp_c.toString())
+                    Text(text = "°C")
+                }
+                Column(
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .weight(3f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = forecast.day.condition.text,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = forecast.date.takeLast(5))
+                        Text(text = "${forecast.day.maxtemp_c}/${forecast.day.mintemp_c}°C")
+                    }
+                }
+                IconButton(
+                    onClick = {
+                              expanded = !expanded
+                    },
+                    modifier = Modifier
+                        .rotate(rotation)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = "Drop-Down Arrow",
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+            }
+            
+            if (expanded) {
+                Divider(
+                    modifier = Modifier.padding(8.dp),
+                    thickness = 1.dp
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    ExtrasItemCard(
+                        R.drawable.drop,
+                        "Drop",
+                        "Wind Speed",
+                        forecast.day.maxwind_kph.toString()
+                    )
+                    ExtrasItemCard(
+                        R.drawable.drop,
+                        "Drop",
+                        "Humidity",
+                        forecast.day.avghumidity.toString()
+                    )
+                    ExtrasItemCard(
+                        R.drawable.drop,
+                        "Drop",
+                        "UV",
+                        forecast.day.uv.toString()
+                    )
+                }
+            }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CitySearchField() {
+fun ForecastDailySection(days: List<Forecastday>) {
 
-    var text by remember { mutableStateOf("Hallo") }
-
-//    OutlinedTextField(
-//        value = search,
-//        onValueChange = { text = it },
-//        label = { Text("City") }
-//    )
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        days.forEach { day : Forecastday ->
+            ForecastDailyCardExperimental(forecast = day)
+        }
+    }
 }
 
-@Preview(
-    showBackground = true,
-)
 @Composable
-fun CitySearchFieldPreview() {
-    CitySearchField()
+fun ExtrasDataSection(current: Current) {
+
+    Row(
+        modifier = Modifier
+            .height(IntrinsicSize.Min)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))
+            .padding(32.dp),
+        horizontalArrangement = Arrangement.SpaceAround,
+    ) {
+        Column(
+            modifier = Modifier,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            ExtrasItemCard(
+                R.drawable.wind,
+                "Wind",
+                "Wind Speed",
+                current.wind_kph.toString()
+            )
+            ExtrasItemCard(
+                R.drawable.drop,
+                "Drop",
+                "Humidity",
+                current.humidity.toString()
+            )
+        }
+        Column(
+            modifier = Modifier,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            ExtrasItemCard(
+                R.drawable.thermometer,
+                "Thermometer",
+                "Feels like",
+                current.feelslike_c.toString()
+            )
+            ExtrasItemCard(
+                R.drawable.ultraviolet,
+                "UV",
+                "UV",
+                current.uv.toString()
+            )
+        }
+    }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun ForecastDailySectionPreview() {
-    //ForecastDailySection()
-}
+fun ExtrasItemCard(
+    iconId: Int,
+    contentDescription: String,
+    title: String,
+    value: String
+) {
 
-@Preview(showBackground = true)
-@Composable
-fun ForecastHourlySectionPreview() {
-    //ForecastHourlySection()
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ForecastCurrentPreview() {
-    //ForecastCurrent()
-}
-
-@Preview
-@Composable
-fun ForecastHourCardPreview() {
-    ForecastHourlyCard()
-}
-
-@Preview(
-    showSystemUi = true
-)
-@Composable
-fun ForecastScreenPreview() {
-    ForecastScreen()
+    Column(
+        horizontalAlignment =  Alignment.CenterHorizontally
+    ) {
+        Icon(
+            painterResource(id = iconId),
+            contentDescription = contentDescription,
+            modifier = Modifier.size(24.dp)
+        )
+        Text(text = title)
+        Text(text = value)
+    }
 }

@@ -1,5 +1,6 @@
 package com.example.wapp.screens.forecast
 
+import android.util.Log
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.FrameLayout
 import androidx.compose.animation.animateContentSize
@@ -15,7 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
@@ -24,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -43,6 +45,11 @@ import com.example.wapp.data.models.Current
 import com.example.wapp.data.models.Forecast
 import com.example.wapp.data.models.Forecastday
 import com.example.wapp.data.models.Hour
+import com.example.wapp.screens.destinations.AboutScreenDestination
+import com.example.wapp.screens.destinations.LocationScreenDestination
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootNavGraph
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 
 // TODO: Think about pull-to-refresh
 
@@ -52,8 +59,11 @@ import com.example.wapp.data.models.Hour
     ExperimentalLifecycleComposeApi::class
 )
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@RootNavGraph(start = true)
+@Destination
 @Composable
 fun ForecastScreen(
+    navigator: DestinationsNavigator,
     viewModel: ForecastScreenViewModel = hiltViewModel(),
 ) {
 
@@ -62,9 +72,34 @@ fun ForecastScreen(
     val pullRefreshState = rememberPullRefreshState(uiState.loading, { viewModel.load(uiState.searchText) })
 
     // TODO: Rewrite background video part
-    DisposableEffect(
+//    DisposableEffect(
+//        AndroidView(
+//            factory = { context ->
+//                PlayerView(context).apply {
+//                    player = viewModel.player
+//                    layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+//                    useController = false
+//                    resizeMode = RESIZE_MODE_ZOOM
+//                }
+//            },
+//            modifier = Modifier.fillMaxSize()
+//        )
+//    ) {
+//        onDispose {
+//            viewModel.player.release()
+//        }
+//    }
+    //val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+
+    Scaffold(
+        modifier = Modifier ,
+        topBar = { TopAppBar(navigator = navigator) }
+    ) { paddingValues ->
+
+        //Log.e("TEST", scrollBehavior.isPinned.toString())
+
         AndroidView(
-            factory = { context ->  
+            factory = { context ->
                 PlayerView(context).apply {
                     player = viewModel.player
                     layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
@@ -74,33 +109,31 @@ fun ForecastScreen(
             },
             modifier = Modifier.fillMaxSize()
         )
-    ) {
-        onDispose {
-            viewModel.player.release()
+
+        Box(
+            Modifier
+                .padding(paddingValues)
+                .pullRefresh(pullRefreshState)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (uiState.loading) {
+                    CircularProgressIndicator()
+                } else {
+                    uiState.forecast?.let { forecast ->
+                        ForecastWrapper(forecast)
+                    }
+                }
+            }
+            //PullRefreshIndicator(uiState.loading, pullRefreshState, Modifier.align(Alignment.TopCenter))
         }
     }
 
-    Box(
-        Modifier
-            .pullRefresh(pullRefreshState)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (uiState.loading) {
-                CircularProgressIndicator()
-            } else {
-                uiState.forecast?.let { forecast ->
-                    ForecastWrapper(forecast)
-                }
-            }
-        }
-        //PullRefreshIndicator(uiState.loading, pullRefreshState, Modifier.align(Alignment.TopCenter))
-    }
 }
 
 @Composable
@@ -401,4 +434,38 @@ fun ExtrasItemCard(
         Text(text = title)
         Text(text = value)
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TopAppBar(
+    navigator: DestinationsNavigator
+) {
+
+    var showMenu by remember { mutableStateOf(false) }
+
+    CenterAlignedTopAppBar(
+        title = { Text(text = "") },
+        actions = {
+            IconButton(onClick = { showMenu = !showMenu }) {
+                Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More")
+            }
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text(text = "About") },
+                    onClick = { navigator.navigate(AboutScreenDestination()) },
+                    trailingIcon = { Icon(imageVector = Icons.Default.QuestionMark, contentDescription = "About") }
+                )
+                DropdownMenuItem(
+                    text = { Text(text = "Locations") },
+                    onClick = { navigator.navigate(LocationScreenDestination()) },
+                    trailingIcon = { Icon(imageVector = Icons.Default.LocationCity, contentDescription = "Locations") }
+                )
+            }
+        },
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))
+    )
 }

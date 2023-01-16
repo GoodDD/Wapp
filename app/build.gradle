@@ -4,6 +4,7 @@ plugins {
     id 'com.google.dagger.hilt.android'
     id 'org.jetbrains.kotlin.plugin.serialization' version "1.8.0"
     id 'com.google.relay'
+    id 'com.google.devtools.ksp' version '1.7.20-1.0.8'
     id 'kotlin-kapt'
 }
 
@@ -54,9 +55,25 @@ android {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
         }
     }
+    applicationVariants.all { variant ->
+        kotlin.sourceSets {
+            getByName(variant.name) {
+                kotlin.srcDir("build/generated/ksp/${variant.name}/kotlin")
+            }
+        }
+    }
 }
 
 dependencies {
+
+    // Destinations
+
+    def destinationVersion = "1.7.30-beta"
+
+    implementation "io.github.raamcosta.compose-destinations:core:$destinationVersion"
+    ksp "io.github.raamcosta.compose-destinations:ksp:$destinationVersion"
+
+    // Media3
 
     implementation "androidx.media3:media3-exoplayer:1.0.0-beta03"
     implementation "androidx.media3:media3-ui:1.0.0-beta03"

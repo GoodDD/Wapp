@@ -117,7 +117,7 @@ class ForecastScreenViewModel @Inject constructor(
                     _forecast.value = response.data
                 }
                 is Response.Error -> {
-                    Log.i("wtfE", "error")
+                    Log.i("wtfE", response.message)
                 }
             }
             _isLoading.value = false

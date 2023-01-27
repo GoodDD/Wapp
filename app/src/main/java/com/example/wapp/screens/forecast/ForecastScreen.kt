@@ -1,13 +1,13 @@
 package com.example.wapp.screens.forecast
 
+import android.content.Context
 import android.util.Log
-import android.view.ViewGroup.LayoutParams.MATCH_PARENT
-import android.widget.FrameLayout
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -15,29 +15,32 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.FractionalThreshold
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.LocationCity
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material.swipeable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.ExperimentalLifecycleComposeApi
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.wapp.R
@@ -50,8 +53,13 @@ import com.example.wapp.screens.destinations.LocationScreenDestination
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootNavGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import kotlin.math.roundToInt
 
 // TODO: Think about pull-to-refresh
+
+private fun dpToPx(context: Context, dpValue: Float): Float {
+    return dpValue * context.resources.displayMetrics.density
+}
 
 @OptIn(
     ExperimentalMaterialApi::class,
@@ -70,6 +78,8 @@ fun ForecastScreen(
     val uiState = viewModel.forecastUiState.collectAsStateWithLifecycle().value
 
     val pullRefreshState = rememberPullRefreshState(uiState.loading, { viewModel.load(uiState.searchText) })
+
+    var test = viewModel.a
 
     // TODO: Rewrite background video part
 //    DisposableEffect(
@@ -90,6 +100,38 @@ fun ForecastScreen(
 //        }
 //    }
     //val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    Log.i("test variable", "${test.value}")
+
+    val width = 96.dp
+    val squareSize = 48.dp
+
+    val context = LocalContext.current
+
+    val swipeableState = androidx.compose.material.rememberSwipeableState(
+        initialValue = 0,
+        // NICE
+        confirmStateChange = {
+            Log.i("SWIPE", "$it")
+            test.value = it
+            viewModel.load("Paris")
+            true
+        }
+
+    )
+    val sizePx = with(LocalDensity.current) { squareSize.toPx() }
+    val anchors = mapOf(
+        0f to 0,
+        dpToPx(context = context, dpValue = 100f) to 1,
+        dpToPx(context = context, dpValue = 50f) to 2,
+    ) // Maps anchor points (in px) to states
+
+    if (swipeableState.isAnimationRunning) {
+        DisposableEffect(Unit) {
+            onDispose {
+                Log.i("Swipe","animation finished")
+            }
+        }
+    }
 
     Scaffold(
         modifier = Modifier ,
@@ -98,27 +140,33 @@ fun ForecastScreen(
 
         //Log.e("TEST", scrollBehavior.isPinned.toString())
 
-        AndroidView(
-            factory = { context ->
-                PlayerView(context).apply {
-                    player = viewModel.player
-                    layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-                    useController = false
-                    resizeMode = RESIZE_MODE_ZOOM
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+//        AndroidView(
+//            factory = { context ->
+//                PlayerView(context).apply {
+//                    player = viewModel.player
+//                    layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+//                    useController = false
+//                    resizeMode = RESIZE_MODE_ZOOM
+//                }
+//            },
+//            modifier = Modifier.fillMaxSize()
+//        )
 
         Box(
             Modifier
                 .padding(paddingValues)
-                .pullRefresh(pullRefreshState)
+                .swipeable(
+                    state = swipeableState,
+                    anchors = anchors,
+                    thresholds = { _, _ -> FractionalThreshold(0.3f) },
+                    orientation = Orientation.Horizontal
+                )
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(8.dp),
+                    //.offset { IntOffset(swipeableState.offset.value.roundToInt(), 0) },
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -133,7 +181,6 @@ fun ForecastScreen(
             //PullRefreshIndicator(uiState.loading, pullRefreshState, Modifier.align(Alignment.TopCenter))
         }
     }
-
 }
 
 @Composable
@@ -145,7 +192,7 @@ fun ForecastWrapper(forecast: Forecast) {
     ) {
         ForecastCurrent(forecast)
         ForecastHourlySection(forecast.forecast.forecastday[0].hour)
-        ForecastDailySection(forecast.forecast.forecastday)
+        ForecastDailySection(forecast.forecast.forecastday.slice(1 until forecast.forecast.forecastday.size))
         ExtrasDataSection(forecast.current)
     }
 }
@@ -325,7 +372,7 @@ fun ForecastDailyCardExperimental(forecast: Forecastday) {
                     horizontalArrangement = Arrangement.SpaceAround
                 ) {
                     ExtrasItemCard(
-                        R.drawable.drop,
+                        R.drawable.wind,
                         "Drop",
                         "Wind Speed",
                         forecast.day.maxwind_kph.toString()
@@ -337,7 +384,7 @@ fun ForecastDailyCardExperimental(forecast: Forecastday) {
                         forecast.day.avghumidity.toString()
                     )
                     ExtrasItemCard(
-                        R.drawable.drop,
+                        R.drawable.ultraviolet,
                         "Drop",
                         "UV",
                         forecast.day.uv.toString()
@@ -444,8 +491,15 @@ fun TopAppBar(
 
     var showMenu by remember { mutableStateOf(false) }
 
-    CenterAlignedTopAppBar(
-        title = { Text(text = "") },
+    TopAppBar(
+        title = {
+            OutlinedTextField(
+                value = "test",
+                onValueChange = {},
+                modifier = Modifier
+            )
+        },
+        modifier = Modifier.padding(12.dp),
         actions = {
             IconButton(onClick = { showMenu = !showMenu }) {
                 Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More")
@@ -456,7 +510,7 @@ fun TopAppBar(
             ) {
                 DropdownMenuItem(
                     text = { Text(text = "About") },
-                    onClick = { navigator.navigate(AboutScreenDestination()) },
+                    onClick = { navigator.navigate(AboutScreenDestination())},
                     trailingIcon = { Icon(imageVector = Icons.Default.QuestionMark, contentDescription = "About") }
                 )
                 DropdownMenuItem(

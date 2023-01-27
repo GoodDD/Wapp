@@ -2,7 +2,6 @@ plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
     id 'com.google.dagger.hilt.android'
-    id 'org.jetbrains.kotlin.plugin.serialization' version "1.8.0"
     id 'com.google.relay'
     id 'com.google.devtools.ksp' version '1.7.20-1.0.8'
     id 'kotlin-kapt'
@@ -65,6 +64,12 @@ android {
 }
 
 dependencies {
+
+    //Room
+    def room_version = "2.5.0"
+    implementation "androidx.room:room-runtime:$room_version"
+    kapt "androidx.room:room-compiler:$room_version"
+    implementation "androidx.room:room-ktx:$room_version"
 
     // Destinations
 

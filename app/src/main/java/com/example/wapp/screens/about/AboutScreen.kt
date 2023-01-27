@@ -159,15 +159,3 @@ fun RedirectDialog(
         )
     }
 }
-
-@Preview
-@Composable
-fun AboutScreenPreview() {
-    AboutScreen(navigator = EmptyDestinationsNavigator)
-}
-
-@Preview
-@Composable
-fun RedirectDialogPreview() {
-    //RedirectDialog("https://www.flaticon.com/authors/freepik")
-}

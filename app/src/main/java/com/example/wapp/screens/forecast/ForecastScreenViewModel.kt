@@ -42,6 +42,8 @@ class ForecastScreenViewModel @Inject constructor(
     private val _forecast: MutableStateFlow<Forecast?> = MutableStateFlow(null)
     private val _cities = MutableStateFlow<List<SearchLocation>>(emptyList())
 
+    val a = MutableStateFlow<Int>(0)
+
     val forecastUiState = combine(_searchText, _isLoading, _forecast, _cities) {
         searchText, isLoading, forecast, cities ->
 

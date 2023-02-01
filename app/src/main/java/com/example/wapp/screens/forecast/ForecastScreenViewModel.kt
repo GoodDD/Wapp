@@ -10,6 +10,8 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UriUtil
 import com.example.wapp.R
 import com.example.wapp.data.models.Forecast
+import com.example.wapp.data.models.Forecastday
+import com.example.wapp.data.models.Hour
 import com.example.wapp.data.models.SearchLocation
 import com.example.wapp.repository.WeatherRepository
 import com.example.wapp.utils.Response
@@ -19,7 +21,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.time.Instant
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 data class ForecastUiState(
     val searchText: String = "",
@@ -32,17 +36,14 @@ data class ForecastUiState(
 @HiltViewModel
 class ForecastScreenViewModel @Inject constructor(
     private val repository: WeatherRepository,
-    val player: Player
+    //val player: Player
 ): ViewModel() {
-
     // TODO: TEMP, testing pull-to-refresh
     private var _searchText = MutableStateFlow("")
 
     private val _isLoading = MutableStateFlow(true)
     private val _forecast: MutableStateFlow<Forecast?> = MutableStateFlow(null)
     private val _cities = MutableStateFlow<List<SearchLocation>>(emptyList())
-
-    val a = MutableStateFlow<Int>(0)
 
     val forecastUiState = combine(_searchText, _isLoading, _forecast, _cities) {
         searchText, isLoading, forecast, cities ->
@@ -76,7 +77,6 @@ class ForecastScreenViewModel @Inject constructor(
     fun clearSearch() {
             _cities.value = emptyList()
             Log.i(ForecastScreenViewModel::class.simpleName, "Cleared! $_cities")
-
     }
 
     private fun additionalSearchTextSetup() {
@@ -115,11 +115,10 @@ class ForecastScreenViewModel @Inject constructor(
             _isLoading.value = true
             when (val response = repository.getForecast(prefix)) {
                 is Response.Success -> {
-                    Log.i("Won", "responce success")
                     _forecast.value = response.data
                 }
                 is Response.Error -> {
-                    Log.i("wtfE", response.message)
+                    Log.i(ForecastScreenViewModel::class.simpleName, response.message)
                 }
             }
             _isLoading.value = false
@@ -134,11 +133,24 @@ class ForecastScreenViewModel @Inject constructor(
 
     init {
         additionalSearchTextSetup()
-        load("Tallinn")
-        player.apply {
-            setMediaItem(MediaItem.fromUri(getVideoUri()))
-            repeatMode = Player.REPEAT_MODE_ALL
-            playWhenReady = true
-        }.prepare()
+//        player.apply {
+//            setMediaItem(MediaItem.fromUri(getVideoUri()))
+//            repeatMode = Player.REPEAT_MODE_ALL
+//            playWhenReady = true
+//        }.prepare()
+    }
+
+    fun formattedHours(days: List<Forecastday>): List<Hour> {
+        val range = Instant.now().epochSecond.toInt()..Instant.now().epochSecond.toInt() + 86400
+        val hours: MutableList<Hour> = (days[0].hour + days[1].hour) as MutableList<Hour>
+
+        val formattedHours = mutableListOf<Hour>()
+        hours.forEach { hour -> if (hour.time_epoch in range) { formattedHours.add(hour) } }
+
+        return formattedHours
+    }
+
+    fun formattedDays(days: List<Forecastday>): List<Forecastday> {
+        return days.slice(1 until days.size)
     }
 }

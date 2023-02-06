@@ -1,6 +1,5 @@
 package com.example.wapp.screens.forecast
 
-import android.content.Context
 import android.util.Log
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.FrameLayout
@@ -9,15 +8,17 @@ import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +40,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.ExperimentalLifecycleComposeApi
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
@@ -53,11 +56,9 @@ import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootNavGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 
-// TODO: Think about pull-to-refresh
-
 @OptIn(
     ExperimentalMaterial3Api::class,
-    ExperimentalLifecycleComposeApi::class
+    ExperimentalLifecycleComposeApi::class,
 )
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @RootNavGraph(start = true)
@@ -70,7 +71,15 @@ fun ForecastScreen(
 
     val uiState = viewModel.forecastUiState.collectAsStateWithLifecycle().value
 
-    // TODO: Rewrite background video part
+    val focusManager = LocalFocusManager.current
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Log.i("Forecast", uiState.forecast.toString())
+
+    LaunchedEffect(Unit) {
+        viewModel.load("Tallinn")
+    }
+
 //    DisposableEffect(
 //        AndroidView(
 //            factory = { context ->
@@ -88,11 +97,6 @@ fun ForecastScreen(
 //            viewModel.player.release()
 //        }
 //    }
-    Log.i("Forecast", uiState.forecast.toString())
-
-    LaunchedEffect(Unit) {
-        viewModel.load("Tallinn")
-    }
 
     Scaffold(
         modifier = Modifier ,
@@ -100,17 +104,42 @@ fun ForecastScreen(
             navigator = navigator,
             searchText = uiState.searchText,
             onValueChange = viewModel::onCityNameSearch,
-            onDone = { viewModel.load(uiState.searchText) }
+            onDone = {
+                viewModel.load(uiState.searchText)
+                focusManager.clearFocus()
+            }
         ) }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState()),
-        ) {
-            if (uiState.loading) {
+        if (uiState.loading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
                 CircularProgressIndicator()
-            } else {
+            }
+        } else {
+            AndroidView(
+                factory = { context ->
+                    PlayerView(context).apply {
+                        player = viewModel.player
+                        layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                        useController = false
+                        resizeMode = RESIZE_MODE_ZOOM
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                    ) { focusManager.clearFocus() }, // TODO: Think here
+            ) {
                 uiState.forecast?.let { forecast ->
                     ForecastWrapper(forecast = forecast, viewModel = viewModel)
                 }
@@ -430,11 +459,11 @@ fun TopAppBar(
     onValueChange: (String) -> Unit,
     onDone: () -> Unit
 ) {
-    var showMenu by remember { mutableStateOf(false) }
+    //var showMenu by remember { mutableStateOf(false) }
 
     TopAppBar(
         title = {
-            OutlinedTextField(
+            TextField(
                 value = searchText,
                 onValueChange = onValueChange,
                 modifier = Modifier,
@@ -448,30 +477,27 @@ fun TopAppBar(
                     imeAction = ImeAction.Done
                 ),
                 keyboardActions = KeyboardActions(
-                    onDone = { onDone() }
+                    onDone = {
+                        onDone()
+                    }
                 )
             )
         },
         modifier = Modifier.padding(12.dp),
         actions = {
-            IconButton(onClick = { showMenu = !showMenu }) {
-                Icon(imageVector = Icons.Default.MoreVert, contentDescription = "More")
+            IconButton(onClick = { navigator.navigate(AboutScreenDestination()) }) {
+                Icon(imageVector = Icons.Default.QuestionMark, contentDescription = "About")
             }
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text(text = "About") },
-                    onClick = { navigator.navigate(AboutScreenDestination())},
-                    trailingIcon = { Icon(imageVector = Icons.Default.QuestionMark, contentDescription = "About") }
-                )
-                DropdownMenuItem(
-                    text = { Text(text = "Locations") },
-                    onClick = { navigator.navigate(LocationScreenDestination()) },
-                    trailingIcon = { Icon(imageVector = Icons.Default.LocationCity, contentDescription = "Locations") }
-                )
-            }
+//            DropdownMenu(
+//                expanded = showMenu,
+//                onDismissRequest = { showMenu = false }
+//            ) {
+//                DropdownMenuItem(
+//                    text = { Text(text = "About") },
+//                    onClick = { navigator.navigate(AboutScreenDestination())},
+//                    trailingIcon = { Icon(imageVector = Icons.Default.QuestionMark, contentDescription = "About") }
+//                )
+//            }
         },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0f))
     )

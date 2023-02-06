@@ -3,6 +3,7 @@ package com.example.wapp.screens.forecast
 import android.net.Uri
 import android.util.Log
 import androidx.compose.ui.focus.FocusManager
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
@@ -36,10 +37,10 @@ data class ForecastUiState(
 @HiltViewModel
 class ForecastScreenViewModel @Inject constructor(
     private val repository: WeatherRepository,
-    //val player: Player
+    val player: Player
 ): ViewModel() {
     // TODO: TEMP, testing pull-to-refresh
-    private var _searchText = MutableStateFlow("")
+    private val _searchText = MutableStateFlow("")
 
     private val _isLoading = MutableStateFlow(true)
     private val _forecast: MutableStateFlow<Forecast?> = MutableStateFlow(null)
@@ -48,7 +49,7 @@ class ForecastScreenViewModel @Inject constructor(
     val forecastUiState = combine(_searchText, _isLoading, _forecast, _cities) {
         searchText, isLoading, forecast, cities ->
 
-            if (searchText.isBlank() || searchText.length < 3) clearSearch()
+            //if (searchText.isBlank() || searchText.length < 3) clearSearch()
 
             ForecastUiState(
                 searchText,
@@ -56,6 +57,7 @@ class ForecastScreenViewModel @Inject constructor(
                 forecast,
                 cities
             )
+
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(),
@@ -68,8 +70,8 @@ class ForecastScreenViewModel @Inject constructor(
     }
 
     fun onCityNameSelected(prefix: String, focusManager: FocusManager) {
-        _searchText.value = prefix
-        load(prefix)
+        //_searchText.value = prefix
+        //load(prefix)
         clearSearch()
         focusManager.clearFocus()
     }
@@ -103,7 +105,7 @@ class ForecastScreenViewModel @Inject constructor(
                     Log.i("GetCities", response.data.toString())
                 }
                 is Response.Error -> {
-                    Log.i("getCities", response.message)
+                    Log.i("GetCities", response.message)
                 }
             }
         }
@@ -133,11 +135,11 @@ class ForecastScreenViewModel @Inject constructor(
 
     init {
         additionalSearchTextSetup()
-//        player.apply {
-//            setMediaItem(MediaItem.fromUri(getVideoUri()))
-//            repeatMode = Player.REPEAT_MODE_ALL
-//            playWhenReady = true
-//        }.prepare()
+        player.apply {
+            setMediaItem(MediaItem.fromUri(getVideoUri()))
+            repeatMode = Player.REPEAT_MODE_ALL
+            playWhenReady = true
+        }.prepare()
     }
 
     fun formattedHours(days: List<Forecastday>): List<Hour> {

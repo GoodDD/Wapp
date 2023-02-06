@@ -72,7 +72,7 @@ fun AboutScreen(
     var linkUrl = ""
 
     Scaffold(
-        modifier = modifier.padding(16.dp),
+        modifier = modifier,
         topBar = { TopAppBar(navigator) }
     ) { paddingValues ->
 
@@ -83,37 +83,38 @@ fun AboutScreen(
             onConfirm = { viewModel.onDialogConfirm(uriHandler, linkUrl) }
         )
 
-        Column(
-            modifier = modifier.padding(paddingValues),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-
-            Text(
-                text = "Project created by Dmitri Pantsenko",
-                style = MaterialTheme.typography.titleLarge
-            )
-            ClickableText(
-                text = annotatedString,
-                style = MaterialTheme.typography.titleLarge + TextStyle(textAlign = TextAlign.Center),
-                onClick = { offset ->
-                    annotatedString.getStringAnnotations(tag = "URL", start = offset, end = offset).firstOrNull()?.let { url ->
-                        linkUrl = url.item
-                        viewModel.onDialogOpen()
+        Box(modifier = Modifier.padding(paddingValues)) {
+            Column(
+                modifier = modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Project created by Dmitri Pantsenko",
+                    style = MaterialTheme.typography.titleLarge
+                )
+                ClickableText(
+                    text = annotatedString,
+                    style = MaterialTheme.typography.titleLarge + TextStyle(textAlign = TextAlign.Center),
+                    onClick = { offset ->
+                        annotatedString.getStringAnnotations(tag = "URL", start = offset, end = offset).firstOrNull()?.let { url ->
+                            linkUrl = url.item
+                            viewModel.onDialogOpen()
+                        }
                     }
-                }
-            )
-            Spacer(modifier = modifier.weight(1f))
-            Text(
-                text = "Powered by WeatherAPI.com",
-                modifier = modifier,
-                style = MaterialTheme.typography.titleLarge
-            )
-            Image(
-                painter = painterResource(id = R.drawable.weatherapi_logo),
-                contentDescription = "Weather api logo",
-                modifier = modifier.size(width = 128.dp, height = 64.dp)
-            )
+                )
+                Spacer(modifier = modifier.weight(1f))
+                Text(
+                    text = "Powered by WeatherAPI.com",
+                    modifier = modifier,
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Image(
+                    painter = painterResource(id = R.drawable.weatherapi_logo),
+                    contentDescription = "Weather api logo",
+                    modifier = modifier.size(width = 128.dp, height = 64.dp)
+                )
+            }
         }
     }
 }

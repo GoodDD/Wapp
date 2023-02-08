@@ -27,6 +27,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.FocusManager
+import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -46,10 +48,7 @@ import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.wapp.R
-import com.example.wapp.data.models.Current
-import com.example.wapp.data.models.Forecast
-import com.example.wapp.data.models.Forecastday
-import com.example.wapp.data.models.Hour
+import com.example.wapp.data.models.*
 import com.example.wapp.screens.destinations.AboutScreenDestination
 import com.example.wapp.screens.destinations.LocationScreenDestination
 import com.ramcosta.composedestinations.annotation.Destination
@@ -72,7 +71,6 @@ fun ForecastScreen(
     val uiState = viewModel.forecastUiState.collectAsStateWithLifecycle().value
 
     val focusManager = LocalFocusManager.current
-    val interactionSource = remember { MutableInteractionSource() }
 
     Log.i("Forecast", uiState.forecast.toString())
 
@@ -80,68 +78,62 @@ fun ForecastScreen(
         viewModel.load("Tallinn")
     }
 
-//    DisposableEffect(
-//        AndroidView(
-//            factory = { context ->
-//                PlayerView(context).apply {
-//                    player = viewModel.player
-//                    layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-//                    useController = false
-//                    resizeMode = RESIZE_MODE_ZOOM
-//                }
-//            },
-//            modifier = Modifier.fillMaxSize()
-//        )
-//    ) {
-//        onDispose {
-//            viewModel.player.release()
-//        }
-//    }
+    DisposableEffect(
+        AndroidView(
+            factory = { context ->
+                PlayerView(context).apply {
+                    player = viewModel.player
+                    layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+                    useController = false
+                    resizeMode = RESIZE_MODE_ZOOM
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+    ) {
+        onDispose {
+            viewModel.player.release()
+        }
+    }
 
-    Scaffold(
-        modifier = Modifier ,
-        topBar = { TopAppBar(
-            navigator = navigator,
-            searchText = uiState.searchText,
-            onValueChange = viewModel::onCityNameSearch,
-            onDone = {
-                viewModel.load(uiState.searchText)
-                focusManager.clearFocus()
-            }
-        ) }
-    ) { paddingValues ->
-        if (uiState.loading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
-            AndroidView(
-                factory = { context ->
-                    PlayerView(context).apply {
-                        player = viewModel.player
-                        layoutParams = FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
-                        useController = false
-                        resizeMode = RESIZE_MODE_ZOOM
-                    }
+    Column {
+        uiState.forecast?.let { forecast ->
+            CitySearchField(
+                prefix = uiState.searchText,
+                onPrefixChanged = viewModel::onCityNameSearch,
+                cities = uiState.cities,
+                onCitySelected = {
+                    viewModel.onCityNameSearch(it)
+                    viewModel.load(it)
+                    viewModel.clearSearch()
+                    focusManager.clearFocus()
                 },
-                modifier = Modifier.fillMaxSize()
+                onClear = {
+                    viewModel.onCityNameSearch(it)
+                    viewModel.clearSearch()
+                    focusManager.clearFocus()
+                },
+                onDone = {
+                    viewModel.load(uiState.searchText)
+                    viewModel.clearSearch()
+                    focusManager.clearFocus()
+                }
             )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                    ) { focusManager.clearFocus() }, // TODO: Think here
             ) {
-                uiState.forecast?.let { forecast ->
-                    ForecastWrapper(forecast = forecast, viewModel = viewModel)
+                Column(
+                    modifier = Modifier
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    ForecastCurrent(forecast = forecast)
+                    ForecastHourlySection(hours = viewModel.formattedHours(forecast.forecast.forecastday))
+                    ForecastDailySection(days = viewModel.formattedDays(forecast.forecast.forecastday))
+                    ForecastExtrasSection(current = forecast.current)
                 }
             }
         }
@@ -451,54 +443,128 @@ fun ExtrasItemCard(
     }
 }
 
+//@OptIn(ExperimentalMaterial3Api::class)
+//@Composable
+//fun TopAppBar(
+//    navigator: DestinationsNavigator,
+//    searchText: String,
+//    cities: List<SearchLocation>,
+//    onValueChange: (String) -> Unit,
+//    onDone: () -> Unit
+//) {
+//    TopAppBar(
+//        title = {
+//            CitySearchField(
+//                prefix = searchText,
+//                onPrefixChanged = onValueChange,
+//                cities = cities,
+//                onDone = onDone,
+//            )
+//        },
+//        modifier = Modifier.padding(12.dp),
+//        actions = {
+//            IconButton(onClick = { navigator.navigate(AboutScreenDestination()) }) {
+//                Icon(imageVector = Icons.Default.QuestionMark, contentDescription = "About")
+//            }
+////            DropdownMenu(
+////                expanded = showMenu,
+////                onDismissRequest = { showMenu = false }
+////            ) {
+////                DropdownMenuItem(
+////                    text = { Text(text = "About") },
+////                    onClick = { navigator.navigate(AboutScreenDestination())},
+////                    trailingIcon = { Icon(imageVector = Icons.Default.QuestionMark, contentDescription = "About") }
+////                )
+////            }
+//        },
+//        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0f))
+//    )
+//}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopAppBar(
-    navigator: DestinationsNavigator,
-    searchText: String,
-    onValueChange: (String) -> Unit,
+fun CitySearchField(
+    prefix: String,
+    onPrefixChanged: (String) -> Unit,
+    cities: List<SearchLocation>,
+    onCitySelected: (String) -> Unit,
+    onClear: (String) -> Unit,
     onDone: () -> Unit
 ) {
-    //var showMenu by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
+    //expanded = cities.isNotEmpty() // TODO: Watch this part over
 
-    TopAppBar(
-        title = {
-            TextField(
-                value = searchText,
-                onValueChange = onValueChange,
-                modifier = Modifier,
-                trailingIcon = {
-                    IconButton(onClick = onDone) {
-                        Icon(Icons.Default.Search, null)
-                    }
-                },
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        onDone()
-                    }
-                )
+    val focusManager = LocalFocusManager.current
+
+    Log.i("CitiesInTest", cities.toString())
+    Log.i("Expanded", expanded.toString())
+    Log.i("Length", prefix.length.toString())
+    Log.i("Prefix", prefix)
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded },
+        modifier = Modifier
+            .padding(vertical = 16.dp, horizontal = 48.dp)
+    ) {
+
+        TextField(
+            value = prefix,
+            onValueChange = { onPrefixChanged(it) },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+            leadingIcon = {
+                IconButton(onClick = {
+                    onClear("")
+                    expanded = false
+                }) {
+                    Icon(Icons.Default.Close, "close")
+                }
+            },
+            trailingIcon = {
+                IconButton(onClick = {
+                    onDone()
+                    expanded = false
+                }) {
+                    Icon(Icons.Default.Search, "search")
+                }
+            },
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Sentences,
+                imeAction = ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    onDone()
+                    expanded = false
+                }
             )
-        },
-        modifier = Modifier.padding(12.dp),
-        actions = {
-            IconButton(onClick = { navigator.navigate(AboutScreenDestination()) }) {
-                Icon(imageVector = Icons.Default.QuestionMark, contentDescription = "About")
+        )
+        //val filter = cities.filter { it.name.contains("paris", ignoreCase = true) }
+        if (cities.isNotEmpty()) {
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = {
+                    Log.i("Dismiss?", "Yep")
+                    //expanded = false
+
+                    //viewModel.clearSearch()
+                    //expanded = false
+                    //focusManager.clearFocus()
+                },
+                modifier = Modifier.exposedDropdownSize()
+            ) {
+                cities.forEach { selectionOption ->
+                    DropdownMenuItem(
+                        text = { Text(text = selectionOption.name) },
+                        onClick = {
+                            onCitySelected(selectionOption.name)
+                            expanded = false
+                        },
+                    )
+                }
             }
-//            DropdownMenu(
-//                expanded = showMenu,
-//                onDismissRequest = { showMenu = false }
-//            ) {
-//                DropdownMenuItem(
-//                    text = { Text(text = "About") },
-//                    onClick = { navigator.navigate(AboutScreenDestination())},
-//                    trailingIcon = { Icon(imageVector = Icons.Default.QuestionMark, contentDescription = "About") }
-//                )
-//            }
-        },
-        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0f))
-    )
+        }
+    }
 }

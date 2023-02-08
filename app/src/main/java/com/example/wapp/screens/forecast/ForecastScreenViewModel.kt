@@ -49,7 +49,8 @@ class ForecastScreenViewModel @Inject constructor(
     val forecastUiState = combine(_searchText, _isLoading, _forecast, _cities) {
         searchText, isLoading, forecast, cities ->
 
-            //if (searchText.isBlank() || searchText.length < 3) clearSearch()
+            if (searchText.length <= 2 ) _cities.value = emptyList()
+            //if (searchText.isBlank() || searchText.length < 2) clearSearch()
 
             ForecastUiState(
                 searchText,
@@ -70,8 +71,6 @@ class ForecastScreenViewModel @Inject constructor(
     }
 
     fun onCityNameSelected(prefix: String, focusManager: FocusManager) {
-        //_searchText.value = prefix
-        //load(prefix)
         clearSearch()
         focusManager.clearFocus()
     }
@@ -118,6 +117,7 @@ class ForecastScreenViewModel @Inject constructor(
             when (val response = repository.getForecast(prefix)) {
                 is Response.Success -> {
                     _forecast.value = response.data
+                    _searchText.value = response.data.location.name
                 }
                 is Response.Error -> {
                     Log.i(ForecastScreenViewModel::class.simpleName, response.message)

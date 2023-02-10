@@ -64,7 +64,7 @@ import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 @Destination
 @Composable
 fun ForecastScreen(
-    navigator: DestinationsNavigator,
+    onDataLoaded: () -> Unit,
     viewModel: ForecastScreenViewModel = hiltViewModel(),
 ) {
 
@@ -76,6 +76,7 @@ fun ForecastScreen(
 
     LaunchedEffect(Unit) {
         viewModel.load("Tallinn")
+        onDataLoaded()
     }
 
     DisposableEffect(

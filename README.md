@@ -1,5 +1,7 @@
 # Wapp
 
+status: In development
+
 Wapp is a native android weather app created with kotlin. 
 App is still in development, so improvements and new functionalities will be added in a furure.
 
